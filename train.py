@@ -22,9 +22,10 @@ test_loader = DataLoader(test_dataset, batch_size=1, shuffle=True)
 
 LEARNING_RATE = 0.01
 NUM_EPOCHS = 100
+SAMPLE_DIFF_TOLERANCE = 0.04
 
-# conv_model = OneDimConv()
-conv_model = ConvNet()
+conv_model = OneDimConv()
+# conv_model = ConvNet()
 
 # Loss and optimizer
 # Mean squared error loss function, Adam optimizer
@@ -48,11 +49,11 @@ def train_loop():
             outputs = conv_model(sample)
             loss = criterion(outputs, control_labels)
             loss_epoch += loss.item()
-            # Backprop and perform Adam optimisation
+            # Backprop and perform Adam optimization
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            if (i % 50 == 0):
+            if (i % 100 == 0):
                 print(f'Batch #{i}')
 
         scheduler.step()
@@ -69,18 +70,23 @@ def train_loop():
                 outputs = conv_model(sample)
                 loss = criterion(outputs, control_labels)
                 loss_scalar = loss.item()
-                if (loss_scalar <= .04): # Measure of correctness
+                if (loss_scalar <= SAMPLE_DIFF_TOLERANCE): # Measure of correctness
                     correct += 1
                 test_losses += loss_scalar
                 if (i % 100 == 0):
                     print(loss_scalar)
                     print(control_labels - outputs)
-        
+
         test_loss_list.append(test_losses / total_test_num)
         print('Total Loss History', loss_list)
         print(f'Test Loss Total: {test_losses}')
         print(f'% Tolerable: {round(correct / total_test_num * 100)}')
         print('Average Test Loss History', test_loss_list)
+
+        # Stop training and don't save new state if the test loss increases (early stopping)
+        if (len(test_loss_list) >= 3 and test_loss_list[-1] > test_loss_list[-3]):
+            print('Stopping training due to test loss increase')
+            return
 
         torch.save(conv_model.state_dict(), path.join(MODEL_SAVE_DIR, MODEL_SAVE_NAME))
 

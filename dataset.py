@@ -34,6 +34,7 @@ class SynthSoundsDataset(Dataset):
         self.standard_dev = STANDARD_DEV
 
     def __len__(self):
+        return 30000
         return len(self.file_list)
 
     def __getitem__(self, idx):

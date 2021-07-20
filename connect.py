@@ -90,13 +90,18 @@ def write_sample_image(sample_array, sample_id, directory):
 
 # Plays a note on the synthesizer and records the sample
 def play_and_record(outport):
-    outport.send(mido.Message('note_on', note=60, channel=0))
+    play_note(outport, 60, True)
     myrecording = sd.rec(int(RECORD_DURATION * SAMPLERATE), channels=1, blocking=True, device=2)
     sd.play(myrecording, samplerate=SAMPLERATE, blocking=False)
     sample_image = myrecording.reshape(int(RECORD_DURATION * SAMPLERATE))
-    outport.send(mido.Message('note_off', note=60, channel=0))
+    play_note(outport, 60, False)
     
     return sample_image
+
+
+def play_note(outport, note_num, start=True):
+    message = 'note_on' if start else 'note_off'
+    outport.send(mido.Message(message, note=note_num, channel=0))
 
 
 # Sends a control state to the synth, plays that sound, and records the sample
@@ -107,6 +112,7 @@ def make_sample(outport, sample_id, sound_directory, control_directory):
     new_value = random_control_value(control)
     ACTIVE_CONTROL_CODES[control] = new_value
     send_control_states(outport, {control: new_value})
+    sleep(.1)
     sample = play_and_record(outport)
     write_sample_image(sample, sample_id, sound_directory)
     write_control_file(ACTIVE_CONTROL_CODES, sample, sample_id, control_directory)
@@ -122,13 +128,13 @@ def send_control_states(outport, control_values: dict):
 
 
 # Generates a number of synth sound samples with control data
-def generate_samples(num_samples, sound_directory, control_directory):
+def generate_samples(num_samples, sound_directory, control_directory, start_id=0):
     inport, outport = init_interfaces()
     control_defaults = minilogue.default_control_dict()
     print(control_defaults)
     send_control_states(outport, control_defaults)
     for sample_id in range(1, num_samples + 1):
-        make_sample(outport, sample_id + 10000, sound_directory, control_directory)
+        make_sample(outport, sample_id + start_id, sound_directory, control_directory)
 
 
 # Starts up the audio and midi interfaces, returning the midi ports
@@ -157,7 +163,7 @@ def random_control_value(control_num):
     return control_coices[randint(0, len(control_coices) - 1)]
 
 
-generate_samples(20000, './data/sound_images', './data/control_data')
+# generate_samples(30000, './data/sound_images', './data/control_data', start_id=34044)
 
 # def spectrograms_from_waves(from_folder, to_folder):
 #     for json_fname in listdir(from_folder):
